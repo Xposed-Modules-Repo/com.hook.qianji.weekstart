@@ -17,7 +17,7 @@
 
 | 版本 | 文件 | 说明 |
 |------|------|------|
-| v1.1.0 (19) | `QianjiForceMonday_1.1.0(19).apk` | **api102 重构版**（最新，release/ 内置） |
+| v1.1.0 (20) | `QianjiForceMonday_1.1.0(20).apk` | **api102 重构版**|
 | v1.0.15 (17) | `QianjiForceMonday_v1.0.15(17).apk` | 传统 Xposed API 版（旧，仅 GitHub Releases；源码备份于 dev-guide/legacy-traditional-api/） |
 
 ### 🔑 签名策略（FAQ：别人没有我的签名 / 没有 MT Manager 怎么办？）
