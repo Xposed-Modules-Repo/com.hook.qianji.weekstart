@@ -1,7 +1,7 @@
 # 钱迹强制周一 (Qianji Force Monday)
 
-> LSPosed 模块 —— 强制钱迹记账（com.mutangtech.qianji）每周第一天为**周一**
-> 状态：✅ **已成功**（用户实测打开钱迹即周一）
+> **libxposed API 102** LSPosed 模块 —— 强制钱迹记账（com.mutangtech.qianji）每周第一天为**周一**
+> 状态：✅ **已成功**（用户实测打开钱迹即周一）；v1.1.0 已重构为 api102 架构
 
 ## 🎯 解决的问题
 
@@ -17,9 +17,10 @@
 
 | 版本 | 文件 | 说明 |
 |------|------|------|
-| v1.0.15 (17) | `QianjiForceMonday_v1.0.15(17).apk` | 日志精简版（当前最新） |
+| v1.1.0 (19) | `QianjiForceMonday_1.1.0(19).apk` | **api102 重构版**（最新，release/ 内置） |
+| v1.0.15 (17) | `QianjiForceMonday_v1.0.15(17).apk` | 传统 Xposed API 版（旧，仅 GitHub Releases；源码备份于 dev-guide/legacy-traditional-api/） |
 
-### 🔑 签名策略
+### 🔑 签名策略（FAQ：别人没有我的签名 / 没有 MT Manager 怎么办？）
 
 1. **想自己构建使用** → 直接 `./build.sh`，脚本自动生成 **debug keystore（CN=Android Debug）** 签名，
    不需要 MT Manager、不需要任何证书，clone 下来即可构建安装。
@@ -71,20 +72,26 @@ CalendarHubPage.onMenuItemClick
 ## 📁 项目结构
 ```
 com.hook.qianji.weekstart/
-├── AndroidManifest.xml
-├── build.sh                     # 本地构建脚本 (aapt/smali/zipalign/apksigner)
-├── dev-guide/                   # 🧠 开发指南（技术架构 / 踩坑记录 / 环境信息）
-│   ├── architecture.md          # 读取链、写入链、三重 hook 原理
-│   ├── lessons.md               # Smali 开发踩坑记录（签名 / OR逻辑 / 日志 / 混淆）
-│   └── environment.md           # 目标应用信息 / LSPosed 环境 / 混淆映射表
+├── AndroidManifest.xml            # minSdk=26；api102 无需 xposed meta-data
+├── version.properties             # 版本管理（build.sh 自动递增）
+├── build.sh                       # 构建: smali→aapt→打包(META-INF)→zipalign→apksigner
+├── dev-guide/                      # 🧠 开发指南（技术架构 / 踩坑记录 / 环境信息）
+│   ├── architecture.md            # 读取链、写入链、三重 hook 原理
+│   ├── lessons.md                 # Smali 开发踩坑记录（签名 / OR逻辑 / 日志 / 混淆）
+│   ├── environment.md             # 目标应用信息 / LSPosed 环境 / 混淆映射表
+│   └── legacy-traditional-api/    # 旧版传统 Xposed API 源码备份
+├── res/values/arrays.xml          # 资源（作用域数组，保留兼容）
 ├── src/
-│   ├── assets/xposed_init       # 入口类声明
+│   ├── meta-inf/META-INF/xposed/  # 📌 api102 模块声明
+│   │   ├── java_init.list         # 入口类: com.hook.qianji.weekstart.MainHook
+│   │   ├── module.prop            # minApiVersion=101 / targetApiVersion=102 / staticScope / autoHotReload
+│   │   └── scope.list             # 作用域: com.mutangtech.qianji
 │   └── smali/com/hook/qianji/weekstart/
-│       ├── HookEntry.smali      # 入口：注册三重 hook
-│       ├── HookEntry$1.smali    # L3: va.d.getInt 回调
-│       ├── HookEntry$2.smali    # L2: qe.c.c 回调
-│       └── HookEntry$3.smali    # L1: qe.c.getWeekStart 回调
-└── release/                     # 构建产物
+│       ├── MainHook.smali         # api102 入口 (extends XposedModule) + 生命周期 + 热重载
+│       ├── MainHook$WeekStartHooker.smali  # L1: qe.c.getWeekStart() 回调
+│       ├── MainHook$QeCCHooker.smali       # L2: qe.c.c(String,int) 回调
+│       └── MainHook$GetIntHooker.smali     # L3: va.d.getInt(String,int) 回调
+└── release/                       # 构建产物
 ```
 
 ## 🔧 安装使用
@@ -97,11 +104,22 @@ com.hook.qianji.weekstart/
 
 ## 📜 日志确认
 
+api102 版（v1.1.0+）日志 tag 为 `QianjiWeekStart`：
+
 ```
-钱迹强制周一 v1.0.15: 已加载到钱迹
-钱迹强制周一 v1.0.15: 已注册三重hook(getInt/qe.c.c/getWeekStart)
-钱迹强制周一 v1.0.15: ★拦截getWeekStart→周一(2)   ← 每次读取触发
+QianjiWeekStart: 钱迹强制周一 api102 v1.1.0 loaded              ← onModuleLoaded
+QianjiWeekStart: 三重hook已安装(getWeekStart/qe.c.c/getInt)      ← onPackageReady
 ```
+
+> api102 架构下 Hooker 回调无 log 通道（见 dev-guide/lessons.md C2），
+> 拦截是否命中以界面效果为准（日历页周一起始 = 生效）。
+>
+> 旧版 v1.0.15（传统 API）日志格式：
+> ```
+> 钱迹强制周一 v1.0.15: 已加载到钱迹
+> 钱迹强制周一 v1.0.15: 已注册三重hook(getInt/qe.c.c/getWeekStart)
+> 钱迹强制周一 v1.0.15: ★拦截getWeekStart→周一(2)
+> ```
 
 ## 🧱 本地构建（可选）
 
